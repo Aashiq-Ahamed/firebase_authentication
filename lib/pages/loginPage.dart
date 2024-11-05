@@ -29,6 +29,7 @@ class Loginpage extends StatelessWidget {
           accessToken: googleAuth?.accessToken, idToken: googleAuth?.idToken);
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
+      print("google login success ==================================");
       print(userCredential.user?.displayName);
 
       Navigator.pushNamed(context, '/explorePage');
