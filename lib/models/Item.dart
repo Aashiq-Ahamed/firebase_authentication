@@ -1,17 +1,17 @@
-
 import 'package:firebase_authentication/enum/categoryEnum.dart';
 import 'package:firebase_authentication/models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Item {
   Item({
+    this.id,
     required this.itemName,
     required this.dateTime,
     required this.itemCategory,
     required this.itemLocation,
     required this.itemPrice,
     required this.itemDescription,
-    required this.itemImageURL,
+    required this.itemImageURL,  // This remains as a List<String> for full item
     required this.itemStock,
     required this.itemRating,
     required this.likes,
@@ -20,41 +20,41 @@ class Item {
     required this.user,
   });
 
-  final String itemName;
-  final DateTime dateTime;
-  final Categoryenum itemCategory;
-  final String itemLocation;
-  final double itemPrice;
-  final String itemDescription;
-  final List<String> itemImageURL;
-  final int itemStock;
-  final double itemRating;
-  final int likes;
-  final int views;
-  final List<String> reviews;
-  final UserData user;
+  Item.lite({
+    this.id,
+    required this.itemName,
+    required this.itemPrice,
+    required this.itemDescription,
+    required this.itemImageURL,  // Now a String? for a single URL
+    required this.views,
+  });
+
+  String? id;
+  String? itemName;
+  double? itemPrice;
+  Categoryenum? itemCategory;
+  String? itemLocation;
+  DateTime? dateTime;
+  String? itemDescription;
+  List<String>? itemImageURL;  // Full item constructor uses List<String>
+  int? itemStock;
+  double? itemRating;
+  int? likes;
+  int? views;
+  List<String>? reviews;
+  UserData? user;
 
   // Factory constructor to create an Item from Firestore data
   factory Item.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return Item(
+
+    return Item.lite(
+      id: doc.id,
       itemName: data['itemName'] ?? '',
-      itemPrice: (data['itemPrice'] ?? 0).toDouble(),
-      itemLocation: data['itemLocation'] ?? '',
+      itemPrice: data['itemPrice']?.toDouble() ?? 0.0,
       itemDescription: data['itemDescription'] ?? '',
-      dateTime: DateTime.parse(data['dateTime'] ?? DateTime.now().toIso8601String()),
-      itemCategory: Categoryenum.values.firstWhere(
-        (e) => e.toString() == data['itemCategory'],
-        orElse: () => Categoryenum.books,  // Default if no match
-      ),
-      itemImageURL: List<String>.from(data['itemImageURL'] ?? []),
-      itemStock: data['itemStock'] ?? 0,
-      itemRating: (data['itemRating'] ?? 0).toDouble(),
-      likes: data['likes'] ?? 0,
+      itemImageURL: (data['itemImageURL'] as List<dynamic>?)?.cast<String>(),  // Extract first URL as String
       views: data['views'] ?? 0,
-      reviews: List<String>.from(data['reviews'] ?? []),
-      user: UserData.fromMap(data['user'] ?? {}),
     );
   }
-    
 }

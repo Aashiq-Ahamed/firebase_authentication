@@ -8,6 +8,7 @@ import 'package:firebase_authentication/enum/categoryEnum.dart';
 import 'package:firebase_authentication/models/Item.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class Postadpage extends StatefulWidget {
   const Postadpage({super.key});
@@ -36,12 +37,22 @@ class PostadpageState extends State<Postadpage> {
     }
   }
 
+  Future<File> _compressImage(File file) async {
+  final result = await FlutterImageCompress.compressAndGetFile(
+    file.absolute.path,
+    '${file.parent.path}/compressed_${file.path.split('/').last}',
+    quality: 70, // Adjust quality here to reduce file size (0-100)
+  );
+
+  return result ?? file; // Return the compressed file or original if compression fails
+  }
+
   Future<void> _postAd() async {
     if (_formKey.currentState!.validate()) {
       // Show a loading indicator
       showDialog(
         context: context,
-        barrierDismissible: true,
+        barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
@@ -49,14 +60,18 @@ class PostadpageState extends State<Postadpage> {
         // Upload images to Firebase Storage and get their URLs
         List<String> imageUrls = [];
         for (var imageFile in selectedImages) {
-          String fileName = 'images/${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}';
-          // final storageRef = FirebaseStorage.instance.ref().child(fileName);
+
+          final compressedImage = await _compressImage(imageFile);
+
+          String fileName = 'images/${DateTime.now().millisecondsSinceEpoch}_${compressedImage.path.split('/').last}';
+          final storageRef = FirebaseStorage.instance.ref().child(fileName);
           
-          // // Upload the image
-          // await storageRef.putFile(imageFile);
+          // Upload the image
+          await storageRef.putFile(compressedImage);
           
-          // Get the download URL
-          // String downloadUrl = await storageRef.getDownloadURL();
+          //Get the download URL
+          String downloadUrl = await storageRef.getDownloadURL();
+          imageUrls.add(downloadUrl);
 
           
         }

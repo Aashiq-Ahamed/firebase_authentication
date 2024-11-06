@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:transparent_image/transparent_image.dart';
 import 'package:firebase_authentication/enum/categoryEnum.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 void main() {
   runApp(const ExplorePage());
@@ -22,8 +23,75 @@ class ExplorePage extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  HomeScreen({super.key});
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final List<Item> _items = [];
+  bool _isLoading = false;
+  DocumentSnapshot? _lastDocument;
+  final int _pageSize = 6;
+  final int _loadMoreSize = 4;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialItems();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadInitialItems() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    Query query = FirebaseFirestore.instance.collection('items').limit(_pageSize);
+    final snapshot = await query.get();
+
+    setState(() {
+      if (snapshot.docs.isNotEmpty) {
+        _lastDocument = snapshot.docs.last;
+        _items.addAll(snapshot.docs.map((doc) => Item.fromFirestore(doc)).toList());
+      }
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _loadMoreItems() async {
+    if (_isLoading || _lastDocument == null) return;
+
+    setState(() => _isLoading = true);
+
+    Query query = FirebaseFirestore.instance.collection('items').startAfterDocument(_lastDocument!).limit(_loadMoreSize);
+    final snapshot = await query.get();
+
+    setState(() {
+      if (snapshot.docs.isNotEmpty) {
+        _lastDocument = snapshot.docs.last;
+        _items.addAll(snapshot.docs.map((doc) => Item.fromFirestore(doc)).toList());
+      } else {
+        _lastDocument = null;  // No more items to load
+      }
+      _isLoading = false;
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && !_isLoading) {
+      _loadMoreItems();  // Load more items when reaching the end
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +104,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search bar
             TextField(
               decoration: InputDecoration(
                 hintText: 'Search something..',
@@ -50,8 +117,6 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16.0),
-
-            // Horizontal scrollable category list
             SizedBox(
               height: 39.0,
               child: ListView.builder(
@@ -81,159 +146,140 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16.0),
-            // Items Grid
-
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('items').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+              child: GridView.builder(
+                controller: _scrollController,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                  childAspectRatio: 2 / 3,
+                ),
+                itemCount: _items.length + (_isLoading ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= _items.length) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No items found.'));
-                  }
-
-                  final items = snapshot.data!.docs.map((doc) => Item.fromFirestore(doc)).toList();
-
-                  return GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8.0,
-                      crossAxisSpacing: 8.0,
-                      childAspectRatio: 2 / 3,
-                    ),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ProductDetailScreen(item: item),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Image section
-                              Expanded(
-                                flex: 3,
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(8.0),
-                                    topRight: Radius.circular(8.0),
-                                  ),
-                                  child: FadeInImage.memoryNetwork(
-                                    placeholder: kTransparentImage,
-                                    image: item.itemImageURL.isNotEmpty
-                                        ? item.itemImageURL[0]
-                                        : 'https://via.placeholder.com/150',
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                  ),
-                                ),
-                              ),
-
-                              // Price and rating section
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '\$${item.itemPrice.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontSize: 16.0,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4.0),
-                                    Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Icon(Icons.star, color: Colors.amber, size: 16.0),
-                                        const SizedBox(width: 4.0),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item.itemRating.toString(),
-                                                style: const TextStyle(
-                                                  fontSize: 14.0,
-                                                  color: Colors.black54,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4.0),
-                                              Text(
-                                                item.itemDescription,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 10.0,
-                                                  color: Colors.black54,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                  final item = _items[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailScreen(item: item),
                         ),
                       );
                     },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent,
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(8.0),
+                                topRight: Radius.circular(8.0),
+                              ),
+                              child: CachedNetworkImage(imageUrl: item.itemImageURL!.isNotEmpty
+                                    ? item.itemImageURL![0]
+                                    : 'https://via.placeholder.com/150',
+                                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                errorWidget: (context, url, error) => const Icon(Icons.error),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '\$${item.itemPrice!.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4.0),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.star, color: Colors.amber, size: 16.0),
+                                    const SizedBox(width: 4.0),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.views.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 14.0,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4.0),
+                                          Text(
+                                            item.itemDescription!,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 10.0,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
             ),
-            
           ],
         ),
       ),
-      // Floating Action Button for "Post ad"
       floatingActionButton: FloatingActionButton.extended(
-      onPressed: () {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const Postadpage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              // Set up slide-in from right-to-left animation for both enter and exit
-              const begin = Offset(1.0, 0.0); // Start from the right
-              const end = Offset.zero;        // End at the current position
-              const curve = Curves.easeInOut;
+        onPressed: () {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const Postadpage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
 
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              var offsetAnimation = animation.drive(tween);
+                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                var offsetAnimation = animation.drive(tween);
 
-              return SlideTransition(
-                position: offsetAnimation,
-                child: child,
-              );
-            },
-          ),
-        );
-      },
-      label: const Text('Post ad'),
-      icon: const Icon(Icons.add),
-    ),
-    floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
-
+                return SlideTransition(
+                  position: offsetAnimation,
+                  child: child,
+                );
+              },
+            ),
+          );
+        },
+        label: const Text('Post ad'),
+        icon: const Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
+

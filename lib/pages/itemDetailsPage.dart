@@ -24,9 +24,9 @@ class ProductDetailScreen extends StatelessWidget {
               height: 200,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: item.itemImageURL.length, // Assume there are 5 images
+                itemCount: item.itemImageURL!.length, // Assume there are 5 images
                 itemBuilder: (context, index) {
-                  final imageUrl = item.itemImageURL[index];
+                  final imageUrl = item.itemImageURL![index];
                   return Container(
                     width: 200,
                     margin: const EdgeInsets.only(right: 8.0),
@@ -47,7 +47,7 @@ class ProductDetailScreen extends StatelessWidget {
 
             Center(
               child: Text(
-                '${item.itemImageURL.length} ${item.itemImageURL.length > 1 ? 'images' : 'image'} found',
+                '${item.itemImageURL!.length} ${item.itemImageURL!.length > 1 ? 'images' : 'image'} found',
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w300,
@@ -100,7 +100,7 @@ class ProductDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 4.0), // Add some spacing between icon and text
                     Text(
-                      item.itemLocation,
+                      item.itemLocation!,
                       style: const TextStyle(
                         color: Colors.black, // Customize text color
                         fontSize: 12.0, // Customize text size
@@ -151,7 +151,7 @@ class ProductDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16.0),
             Text(
-              item.itemName,
+              item.itemName!,
               style: const TextStyle(
                 fontSize: 20.0,
                 fontWeight: FontWeight.bold
@@ -165,21 +165,21 @@ class ProductDetailScreen extends StatelessWidget {
                   Icons.verified_user
                 ),
                 Text(
-                  item.user.name,
+                  item.user!.name,
                   // style: Theme.of(context).textTheme.subtitle1,
                 ),
               ],
             ),
             const SizedBox(height: 8.0),
             Text(
-              item.itemDescription,
+              item.itemDescription!,
               // style: Theme.of(context).textTheme.bodyText2,
             ),
 
             const Divider(height: 32.0),
 
             // Reviews Section
-            ExpandableReviews(reviews: item.reviews,),
+            ExpandableReviews(reviews: item.reviews!,),
 
             const Divider(height: 32.0),
 
