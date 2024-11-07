@@ -6,6 +6,8 @@ import 'package:transparent_image/transparent_image.dart';
 import 'package:firebase_authentication/enum/categoryEnum.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 void main() {
   runApp(const ExplorePage());
@@ -162,13 +164,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                   final item = _items[index];
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProductDetailScreen(item: item),
-                        ),
+                    onTap: () async {
+                      // Assuming 'item' contains the ID for the item you want to fetch.
+                      String itemId = item.id!;
+
+                      // Show a loading GIF
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (BuildContext context) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
                       );
+
+                      try {
+                        // Fetch the item from Firebase using the itemId.
+                        DocumentSnapshot itemSnapshot = await FirebaseFirestore.instance
+                            .collection('items') // Replace 'items' with your Firestore collection name
+                            .doc(itemId) // Use the item ID to fetch the document
+                            .get();
+
+                        // Check if the item exists
+                        if (itemSnapshot.exists) {
+                          // Retrieve the item data from the snapshot
+                          Item fullItem = Item.fromDocumentSnapshot(itemSnapshot);
+
+                          // Dismiss the loading GIF
+                          Navigator.of(context, rootNavigator: true).pop();
+                      
+
+                          // Navigate to ProductDetailScreen, passing the full item data
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProductDetailScreen(item: fullItem),
+                            ),
+                          );
+                        } else {
+                          // Dismiss the loading GIF
+                          Navigator.of(context, rootNavigator: true).pop();
+                              
+
+                          // Handle the case where the item does not exist
+                          print('Item not found');
+                        }
+                      } catch (e) {
+                        // Dismiss the loading GIF
+                        Navigator.of(context, rootNavigator: true).pop();
+                        
+
+                        // Handle any errors that occur during the fetch operation
+                        print('Error fetching item: $e');
+                      }
                     },
                     child: Container(
                       decoration: BoxDecoration(

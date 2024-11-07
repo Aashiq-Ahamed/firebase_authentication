@@ -18,6 +18,7 @@ class Item {
     required this.views,
     required this.reviews,
     required this.user,
+    required this.isNegotiable
   });
 
   Item.lite({
@@ -43,6 +44,7 @@ class Item {
   int? views;
   List<String>? reviews;
   UserData? user;
+  bool? isNegotiable;
 
   // Factory constructor to create an Item from Firestore data
   factory Item.fromFirestore(DocumentSnapshot doc) {
@@ -57,4 +59,42 @@ class Item {
       views: data['views'] ?? 0,
     );
   }
+  factory Item.fromDocumentSnapshot(DocumentSnapshot snapshot) {
+    Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+    return Item(
+      id: data['id'] as String?,
+      itemName: data['itemName'] as String?,
+      itemPrice: (data['itemPrice'] as num?)?.toDouble(),
+      itemCategory: Categoryenum.values.firstWhere(
+        (c) => c.toString() == 'CategoryEnum.${data['itemCategory']}',
+        orElse: () => Categoryenum.books,
+      ),
+      itemLocation: data['itemLocation'] as String?,
+      dateTime: _getDateTimeFromFirestore(data['dateTime']),
+      itemDescription: data['itemDescription'] as String?,
+      itemImageURL: data['itemImageURL'] != null
+          ? List<String>.from(data['itemImageURL'] as Iterable)
+          : null,
+      itemStock: (data['itemStock'] as num?)?.toInt(),
+      itemRating: (data['itemRating'] as num?)?.toDouble(),
+      likes: (data['likes'] as num?)?.toInt(),
+      views: (data['views'] as num?)?.toInt(),
+      reviews: data['reviews'] != null
+          ? List<String>.from(data['reviews'] as Iterable)
+          : null,
+      user: data['user'] != null
+          ? UserData.fromMap(data['user'] as Map<String, dynamic>)
+          : null,
+      isNegotiable: data['isNegotiable'] as bool? ?? false,
+    );
+  }
+  static DateTime? _getDateTimeFromFirestore(dynamic firestoreDateTime) {
+  if (firestoreDateTime is Timestamp) {
+    return firestoreDateTime.toDate();
+  } else if (firestoreDateTime is String) {
+    return DateTime.parse(firestoreDateTime);
+  } else {
+    return null;
+  }
+}
 }

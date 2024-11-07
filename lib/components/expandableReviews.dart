@@ -12,8 +12,27 @@ class ExpandableReviews extends StatefulWidget {
   }
 }
 
-class ExpandableReviewsState extends State<ExpandableReviews> {
+class ExpandableReviewsState extends State<ExpandableReviews>
+    with SingleTickerProviderStateMixin {
   bool isExpanded = false;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,46 +43,100 @@ class ExpandableReviewsState extends State<ExpandableReviews> {
           onTap: () {
             setState(() {
               isExpanded = !isExpanded;
+              if (isExpanded) {
+                _animationController.forward();
+              } else {
+                _animationController.reverse();
+              }
             });
           },
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Reviews',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+            decoration: BoxDecoration(
+              color: isExpanded ? Theme.of(context).primaryColor : Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.3),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
                 ),
-                // style: Theme.of(context).textTheme.headline6,
-              ),
-              Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
-            ],
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Reviews',
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.bold,
+                    color: isExpanded ? Colors.white : Colors.black,
+                  ),
+                ),
+                RotationTransition(
+                  turns: _animation,
+                  child: Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: isExpanded ? Colors.white : Colors.black,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 8.0),
-        if (isExpanded)
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: widget.reviews.asMap().entries.map((entry) {
-                int index = entry.key;
-                String review = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Review ${index + 1}: $review',
-                    style: const TextStyle(color: Colors.black87),
+        const SizedBox(height: 16.0),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          child: isExpanded
+              ? Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                );
-              }).toList(),
-            )
-          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: widget.reviews.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String review = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Review ${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4.0),
+                            Text(
+                              review,
+                              style: const TextStyle(
+                                fontSize: 14.0,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
